@@ -29,15 +29,16 @@ Edit the below details:
 
 "**pushgateway**" --> PushGateway endpoint/hostname (eg: http://gateway.pushgateway:3000) with port, if applicable
 
-"**username**" "**password**" (in TOKEN) --> API username and password.
+"**username**" & "**password**" (in TOKEN) --> API username and password.
 
-Note: Metrics type is set to "gauge" by default. If you need to change the metric type, please go ahead and change
+_Note: Metrics type is set to "gauge" by default. If you need to change the metric type, please go ahead and change_
 
 "**metrictype**" --> gauge/histogram/counter/summary
 
 Then ctrl+o and ctrl+x to save.
 
 **root@noobie:** chmod +x WazuhMetricsFetcher
+
 **root@noobie:** ./WazuhMetricsFetcher
 
 ## Sample Output:
