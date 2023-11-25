@@ -1,14 +1,17 @@
 #!/bin/bash
-#WazuhMetricsFetcher is a simple bash script, written in a mindset to help the users to fetch wazuh metrics using internal APIs and convert it in to a prometheus metrics.
-#Wazuh ----> Wazuh Metrics ---> Prometheus
+
+#WazuhMetricsFetcher is a simple bash script, written in a mindset to help the users to fetch wazuh metrics using internal APIs and convert it in to a prometheus metrics and then push them to PushGateway exporter for prometheus to scrape them.
+#Wazuh ----> Wazuh Metrics ---> PushGateway ---> Prometheus
 
 #Variables for iterating the api endpoints to fetch details
 whoami=$(basename "$0")
-hostname="<Wazuh dashboard endpoint>"
-API_PORT="<API PORT>"
+hostname="<Wazuh endpoint here>"
+API_PORT="<Wazuh API PORT here>"
+pushgateway="<Pushgateway endpoint here>"
 Login_Endpoint="/security/user/authenticate?raw=true"
-TOKEN=$(curl -s -u <Username>:'<password>' -k -X POST ""$hostname":"$API_PORT""$Login_Endpoint"")
+TOKEN=$(curl -s -u <api user here>:'<api password here>' -k -X POST ""$hostname":"$API_PORT""$Login_Endpoint"")
 Auth=$(curl -s -k -X GET ""$hostname":"$API_PORT"/" -H "Authorization: Bearer $TOKEN")
+metrictype="gauge"
 
 #check if already a metrics file exist
 echo -e "**************************************************************"
@@ -48,17 +51,12 @@ echo -e "**************************************************************"
 curl -s -k -X GET ""$hostname":"$API_PORT"/cluster/status?pretty=true" -H "Authorization: Bearer $TOKEN" > clusterstatus.json
 jq -r '.data' clusterstatus.json | jq -r '.enabled' | tr -d '\r' > cluster_enabled.txt
 jq -r '.data' clusterstatus.json | jq -r '.running' | tr -d '\r' > cluster_running.txt
-echo -e "Wazuh_Cluster_enabled=$(cat cluster_enabled.txt)" >> Wazuh_Metrics.txt
-echo -e "Wazuh_Cluster_enabled=$(cat cluster_running.txt)" >> Wazuh_Metrics.txt
 echo -e "Wazuh_Cluster_enabled=$(cat cluster_enabled.txt)"
-echo -e "Wazuh_Cluster_enabled=$(cat cluster_running.txt)"
+echo -e "Wazuh_Cluster_running=$(cat cluster_running.txt)"
 rm cluster_enabled.txt cluster_running.txt clusterstatus.json
 
 #iterating the agents counts according to their status
 curl -s -k -X GET ""$hostname":"$API_PORT"/overview/agents?pretty=true" -H "Authorization: Bearer $TOKEN" > agent_overview.json
-	echo -e "**************************************************************"
-	echo -e "			Node metrics				"
-	echo -e "**************************************************************"
 	jq -r ' .data | .nodes | .[] | .node_name' agent_overview.json > node_details.txt
 	echo -e  "Wazuh_nodes_count=$(wc -l node_details.txt | cut -d ' ' -f1 )" >> Wazuh_Metrics.txt
 	echo -e  "Wazuh_nodes_count=$(wc -l node_details.txt | cut -d ' ' -f1 )"
@@ -94,7 +92,7 @@ curl -s -k -X GET ""$hostname":"$API_PORT"/overview/agents?pretty=true" -H "Auth
         echo -e "Wazuh_not_synced_agents=$(cat not_synced_Agent_count.txt)"
 	rm not_synced_Agent_count.txt
 	rm agent_overview.json
-
+	
 #iteration to fetch the oudated agents counts with respective status
 echo -e "**************************************************************"
 echo -e "			Outdated Agent metrics			"
@@ -136,9 +134,21 @@ while read s; do
 done < stats_analysisd_draft.txt
 rm stats_analysisd_draft.txt stats.txt stats.json
 
-#printing the final Wazuh metrics file
+#printing the final Wazuh metrics file to prometheus
 sed -i -e 's/=/ /g' Wazuh_Metrics.txt
 echo -e "*************************************************************************************************************"
 echo -e "root@"$whoami" :  Wazuh Metrics will be available in the Wazuh_Metrics.txt file in the working directory"
 echo -e "*************************************************************************************************************"
-#cat Wazuh_Metrics.txt
+
+#final Prometheus formatted wazuh metrics file
+while read metrics;do
+	name=$(echo $metrics | cut -d ' ' -f1)
+	value=$(echo $metrics | cut -d ' ' -f2)
+	echo -e "# HELP "$name >> Wazuh_Metrics_prom.txt
+	echo -e "# TYPE "$name $metrictype >> Wazuh_Metrics_prom.txt
+	echo -e $metrics >> Wazuh_Metrics_prom.txt
+done<Wazuh_Metrics.txt
+cat Wazuh_Metrics_prom.txt | curl --data-binary @- $pushgateway/metrics/job/wazuh_custom_metrics/
+"*************************************************************************************************************"
+echo -e "root@"$whoami" :  Wazuh Metrics with prometheus format will be available in the Wazuh_Metrics_prom.txt file in the working directory"
+echo -e "*************************************************************************************************************"
