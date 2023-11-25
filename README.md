@@ -12,6 +12,7 @@ There are many ways to extract a metrics from wazuh and push it to prometheus, B
 2. Wazuh environment (Central components + agents) up and running.
 3. Wazuh API endpoints, Ports and credentials to interact with APIs.
 4. PushGateway exporter - to push the extracted metrics from this script
+5. Prometheus server running to check the wazuh metrics availability
 
 
 ## Prep & Usage
@@ -20,7 +21,19 @@ To successfully run this script, initially we have to hardcode the API endpoint 
 
 **root@noobie:** nano WazuhMetricsFetcher.sh 
 
-Edit the "hostname", "API_PORT" and "username" "password" (in TOKEN) variables with your environment details.
+Edit the below details:
+
+"**hostname**" --> wazuh hostname(eg: https://wazuhinternal.com), without port details
+
+"**API_PORT**" --> api server port(default : 55000),
+
+"**pushgateway**" --> PushGateway endpoint/hostname (eg: http://gateway.pushgateway:3000) with port, if applicable
+
+"**username**" "**password**" (in TOKEN) --> API username and password.
+
+Note: Metrics type is set to "gauge" by default. If you need to change the metric type, please go ahead and change
+
+"**metrictype**" --> gauge/histogram/counter/summary
 
 Then ctrl+o and ctrl+x to save.
 
@@ -29,7 +42,10 @@ Then ctrl+o and ctrl+x to save.
 
 ## Sample Output:
 Total **58 Metrics** are fetched and prepped to be kept available for prometheus to scrape
+
 **Metrics Format : Wazuh_<Metrics name><space><Metrics value> : Wazuh_nodes_count 5**
+
+Metrics will be available under the job name "**wazuh_custom_metrics**" in the PushGateway dashboard
 
 **Captured Metrics:**
 
