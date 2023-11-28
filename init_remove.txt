@@ -1,0 +1,4 @@
+Wazuh_Metrics.txt
+group_name.txt
+node_details.txt
+Wazuh_Metrics_prom.txt
